@@ -10,9 +10,17 @@ fox = {}
 coin = {}
 mouse = {}
 
+-- Add variables to track the delay after game over
+delay_after_game_over = 5  -- 5 seconds delay
+start_exit_timer = false
+exit_timer = 0
+
+lastKeyPressed = ""
+
+
 function love.resize(w, h)
     width, height = w, h
-    scale = height / 1024
+    scale = height / 720
 end
 
 -- Collision detection function;
@@ -30,6 +38,9 @@ function place_coin()
 end
 
 function love.load()
+    local joysticks = love.joystick.getJoysticks()
+    joystick = joysticks[1] -- get the first connected joystick
+
     love.resize(love.graphics.getWidth(), love.graphics.getHeight())
     love.graphics.setBackgroundColor(0, 255, 0)
     font = love.graphics.newFont('tic-80-wide-font.ttf', 25)
@@ -50,13 +61,27 @@ function love.load()
 end
 
 function love.update(dt)
+
     -- Increase variable timer by 1 every second
     timer = timer + dt
-    -- Game over after 15 seconds
-    if timer > 15 then
+
+    -- Game over after 15 seconds, start exit timer
+    if timer > 15 and not start_exit_timer then
         game_over = true
+        start_exit_timer = true  -- Start the exit timer
     end
 
+    -- When game over, start counting for exit
+    if start_exit_timer then
+        exit_timer = exit_timer + dt
+        if exit_timer > delay_after_game_over then
+            -- Quit the game after delay
+            love.event.quit()
+	    -- love.event.quit('restart')
+        end
+    end
+
+    -- Handle keyboard events
     if love.keyboard.isDown('right') then
         fox.x = fox.x + (fox.speed * dt)
     end
@@ -69,6 +94,8 @@ function love.update(dt)
     if love.keyboard.isDown('up') then
         fox.y = fox.y - (fox.speed * dt)
     end
+
+    -- Handle mouse events
     if love.mouse.isDown(1) then
         mouse.x, mouse.y = love.mouse.getPosition()
 
@@ -85,6 +112,15 @@ function love.update(dt)
             fox.y = fox.y - (fox.speed * 2.5 * dt)
         end
     end
+
+    -- Handle joystick events
+    if joystick then
+        local axisX, axisY = joystick:getAxes()
+
+        fox.x = fox.x + (fox.speed * axisX * dt)
+        fox.y = fox.y + (fox.speed * axisY * dt)
+    end
+
     if
         CheckCollision(
             fox.x,
@@ -103,7 +139,20 @@ function love.update(dt)
 end
 
 function love.keypressed(key)
+    lastKeyPressed = key
+
     if key == 'escape' then
+        love.event.quit()
+    end
+end
+
+function love.joystickpressed(joystick, button)
+    -- You can print or store the button pressed
+    -- lastKeyPressed = button
+    -- print("Button pressed on joystick: " .. button)
+
+    -- If Start-Button on the RGB30 is pressed
+    if button == 10 then
         love.event.quit()
     end
 end
@@ -112,6 +161,8 @@ function love.draw()
     love.graphics.draw(fox.image, fox.x, fox.y)
     love.graphics.draw(coin.image, coin.x, coin.y)
     love.graphics.print('Score: ' .. tostring(score), 10, 10)
+    --love.graphics.print("Last Key Pressed: " .. lastKeyPressed, 10, 30)
+
 
     if game_over then
         -- Clear screen and set pink background
@@ -121,6 +172,5 @@ function love.draw()
         love.graphics.print('Final Score: ' .. tostring(score), 10, 10)
     -- TODO
     --love.graphics.draw(fox.image, width/2, height/2)
-    -- love.event.quit('restart')
     end
 end
